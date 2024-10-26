@@ -145,9 +145,14 @@ class ColorFilter:
         print(f"Renk bilgileri '{output_json}' dosyasına kaydedildi.")
         print(f"İşlenmiş görüntü '{output_image_path}' olarak kaydedildi.")
 
-    def main(self, result_path: str, output_json: str):
+    def main(self, result_path: str, output_json: str, save: bool = False):
         """
         Ana fonksiyon, HSV kodları normalize eder, renkleri filtreler ve sonucu kaydeder.
+        
+        :param result_path: Sonuçların kaydedileceği yol
+        :param output_json: Çıktı JSON dosyasının yolu
+        :param save: Eğer False ise, resimleri kaydetmez, sadece döndürür
+        :return: İşlenmiş resimler
         """
         red_data, yellow_data, blue_data = self.data["red"], self.data["yellow"], self.data["blue"]
         
@@ -163,7 +168,8 @@ class ColorFilter:
                 red_normalized = normalized_red.result()
                 black_processed = processed_black.result()
             except Exception as e:
-                print(f"Error saving images: {e}")
+                print(f"Error normalizing colors: {e}")
+                return None
 
         with ProcessPoolExecutor() as executor:
             filtered_blue = executor.submit(self.filter_color, blue_normalized)
@@ -175,17 +181,28 @@ class ColorFilter:
                 yellow_filtered = filtered_yellow.result()
                 red_filtered = filtered_red.result()
             except Exception as e:
+                print(f"Error filtering colors: {e}")
+                return None
+
+
+        if save:
+            try:
+                cv2.imwrite(result_path.replace('.jpg', '_black_filtered.jpg'), black_processed)    
+                cv2.imwrite(result_path.replace('.jpg', '_blue_filtered.jpg'), blue_filtered)    
+                cv2.imwrite(result_path.replace('.jpg', '_yellow_filtered.jpg'), yellow_filtered)    
+                cv2.imwrite(result_path.replace('.jpg', '_red_filtered.jpg'), red_filtered)    
+            except Exception as e:
                 print(f"Error saving images: {e}")
 
-        try:
-            cv2.imwrite(result_path.replace('.jpg', '_black_filtered.jpg'), black_processed)    
-            cv2.imwrite(result_path.replace('.jpg', '_blue_filtered.jpg'), blue_filtered)    
-            cv2.imwrite(result_path.replace('.jpg', '_yellow_filtered.jpg'), yellow_filtered)    
-            cv2.imwrite(result_path.replace('.jpg', '_red_filtered.jpg'), red_filtered)    
-        except Exception as e:
-            print(f"Error saving images: {e}")
 
         self.filter_and_extract_colors(output_json)
+
+        return {
+            "black": black_processed,
+            "blue": blue_filtered,
+            "yellow": yellow_filtered,
+            "red": red_filtered
+        }
 
 if __name__ == "__main__":
     color_filter = ColorFilter(r'data\5.jpg')
